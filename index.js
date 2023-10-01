@@ -2,6 +2,7 @@ require("dotenv").config();
 const mysql = require("mysql");
 const express = require("express");
 const cors = require("cors");
+const uuid = require("uuid");
 
 const app = express();
 app.use(cors());
@@ -56,7 +57,7 @@ app.get("/threads", function (req, res) {
 app.get("/threads/:id", (req, res) => {
     const threadId = parseInt(req.params.id);
     db.query(
-        `select * from threads where thread_id=?`,
+        `SELECT threads.thread_id,threads.title,threads.body,threads.created_at,threads.last_updated,media.url as image FROM threads LEFT JOIN media ON threads.image = media.media_id where threads.thread_id=? order by last_updated `,
         [threadId],
         (error, data) => {
             if (error) {
@@ -84,6 +85,7 @@ app.get("/threads/:id", (req, res) => {
 //Add new thread to the database
 app.post("/threads", function (req, res) {
     let newThread = { ...req.body };
+    newThread.thread_id = uuid.v4();
 
     db.query("INSERT INTO threads SET ?", newThread, (error, result) => {
         if (error) {
