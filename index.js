@@ -87,7 +87,7 @@ app.get("/threads/:id", (req, res) => {
 //Add new thread to the database
 app.post("/threads", jsonParser, function (req, res) {
     let newThread = { ...req.body };
-    db.query("select post_number from records order by post_number desc limit 1", (error, result) => {
+    db.query("select max(post_number) from records", (error, result) => {
         if (error) {
             return res.status(500).json({ status: "ERROR", error });
         }
@@ -107,7 +107,7 @@ app.post("/threads", jsonParser, function (req, res) {
 //Post reply
 app.post("/replies", jsonParser, function (req, res) {
     let newReply = { ...req.body };
-    db.query("select post_number from records order by post_number desc limit 1", (error, result) => {
+    db.query("select max(post_number) from records", (error, result) => {
         if (error) {
             return res.status(500).json({ status: "ERROR", error });
         }
