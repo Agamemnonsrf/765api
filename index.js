@@ -1,11 +1,13 @@
 require("dotenv").config();
-const mysql = require("mysql");
+const mysql = require("mysql2");
 const express = require("express");
 const cors = require("cors");
-const uuid = require("uuid");
+const bodyParser = require("body-parser");
 
-const app = express();
+const app = express(); var jsonParser = bodyParser.json()
 app.use(cors());
+
+
 
 const PORT = process.env.PORT;
 //Our Database Config
@@ -83,31 +85,37 @@ app.get("/threads/:id", (req, res) => {
 });
 
 //Add new thread to the database
-app.post("/threads", function (req, res) {
+app.post("/threads", jsonParser, function (req, res) {
     let newThread = { ...req.body };
-    newThread.thread_id = uuid.v4();
-
-    db.query("INSERT INTO threads SET ?", newThread, (error, result) => {
+    db.query("select post_number from records order by post_number desc limit 1", (error, result) => {
         if (error) {
             return res.status(500).json({ status: "ERROR", error });
         }
+        newThread.thread_id = result[0].post_number + 1;
+        db.query("INSERT INTO threads SET ?", newThread, (error, result) => {
+            if (error) {
+                return res.status(500).json({ status: "ERROR", error });
+            }
 
-        return res.json({ status: "SUCCESS" });
-    });
+            return res.json({ status: "SUCCESS" });
+        });
+    })
+
+
 });
 
 //Post reply
-app.post("/threads/:id", function (req, res) {
+app.post("/replies", jsonParser, function (req, res) {
     let newReply = { ...req.body };
-
-    db.query("INSERT INTO replies SET ?", newReply, (error, result) => {
+    db.query("select post_number from records order by post_number desc limit 1", (error, result) => {
         if (error) {
             return res.status(500).json({ status: "ERROR", error });
         }
 
+        newReply.reply_id = result[0].post_number + 1;
+
         db.query(
-            "update threads set last_updated=? where thread_id=?",
-            [newReply.created_at, newReply.thread_id],
+            "insert into replies set ?", newReply,
             (error, result) => {
                 if (error) {
                     return res.status(500).json({ status: "ERROR", error });
