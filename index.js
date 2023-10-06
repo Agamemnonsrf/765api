@@ -23,17 +23,33 @@ const db = mysql.createConnection({
     database: DB_DATABASE,
 });
 
+
+
+
+const date = new Date();
+console.log(date)
+console.log(date.toLocaleString())
+
+
+
+
 //Get all threads from the database
 app.get("/threads", function (req, res) {
     db.query(
-        "SELECT threads.thread_id,threads.title,threads.body,threads.created_at,threads.last_updated,media.url as image FROM threads LEFT JOIN media ON threads.image = media.media_id order by last_updated",
+        "SELECT threads.thread_id,threads.title,threads.body,threads.created_at,threads.last_updated,media.url as image FROM threads LEFT JOIN media ON threads.image = media.media_id order by last_updated desc",
         (error, data) => {
             if (error) {
                 return res.json({ status: "ERROR", error });
             }
             const threads = data;
+            //I somehow must only get 6 replies for every thread, how?
+
+
+
+
+
             db.query(
-                "select * from replies order by created_at limit 6",
+                "select * from replies order by created_at",
                 (error, data) => {
                     if (error) {
                         return res.json({ status: "ERROR", error });
@@ -51,6 +67,23 @@ app.get("/threads", function (req, res) {
                     return res.json(completed);
                 }
             );
+        }
+    );
+});
+
+//get a single reply by id
+app.get("/replies/:id", (req, res) => {
+    const replyId = parseInt(req.params.id);
+    db.query(
+        `SELECT * from replies where reply_id=?`,
+        [replyId],
+        (error, data) => {
+            if (error) {
+                return res.json({ status: "ERROR", error });
+            }
+            const reply = data[0];
+
+            return res.json(reply);
         }
     );
 });
@@ -91,7 +124,7 @@ app.post("/threads", jsonParser, function (req, res) {
         if (error) {
             return res.status(500).json({ status: "ERROR", error });
         }
-        newThread.thread_id = result[0].post_number + 1;
+        newThread.thread_id = result[0]['max(post_number)'] + 1;
         db.query("INSERT INTO threads SET ?", newThread, (error, result) => {
             if (error) {
                 return res.status(500).json({ status: "ERROR", error });
@@ -112,10 +145,10 @@ app.post("/replies", jsonParser, function (req, res) {
             return res.status(500).json({ status: "ERROR", error });
         }
 
-        newReply.reply_id = result[0].post_number + 1;
-
+        newReply.reply_id = result[0]['max(post_number)'] + 1;
+        console.log(newReply)
         db.query(
-            "insert into replies set ?", newReply,
+            "insert into replies set content=?, replying_to=?, thread_id=?, reply_id=?, created_at=convert_tz(?,'+00:00', '+00:00')", [newReply.content, newReply.replying_to, newReply.thread_id, newReply.reply_id, newReply.created_at],
             (error, result) => {
                 if (error) {
                     return res.status(500).json({ status: "ERROR", error });
