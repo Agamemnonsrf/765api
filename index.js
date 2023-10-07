@@ -3,6 +3,7 @@ const mysql = require("mysql2");
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const multer = require("multer");
 
 const app = express(); var jsonParser = bodyParser.json()
 app.use(cors());
@@ -26,9 +27,9 @@ const db = mysql.createConnection({
 
 
 
-const date = new Date();
-console.log(date)
-console.log(date.toLocaleString())
+
+
+
 
 
 
@@ -36,7 +37,7 @@ console.log(date.toLocaleString())
 //Get all threads from the database
 app.get("/threads", function (req, res) {
     db.query(
-        "SELECT threads.thread_id,threads.title,threads.body,threads.created_at,threads.last_updated,media.url as image FROM threads LEFT JOIN media ON threads.image = media.media_id order by last_updated desc",
+        "select * from threads order by last_updated desc",
         (error, data) => {
             if (error) {
                 return res.json({ status: "ERROR", error });
@@ -92,7 +93,7 @@ app.get("/replies/:id", (req, res) => {
 app.get("/threads/:id", (req, res) => {
     const threadId = parseInt(req.params.id);
     db.query(
-        `SELECT threads.thread_id,threads.title,threads.body,threads.created_at,threads.last_updated,media.url as image FROM threads LEFT JOIN media ON threads.image = media.media_id where threads.thread_id=? order by last_updated `,
+        `select * from threads where threads.thread_id=? order by last_updated `,
         [threadId],
         (error, data) => {
             if (error) {
@@ -158,6 +159,53 @@ app.post("/replies", jsonParser, function (req, res) {
             }
         );
     });
+});
+
+
+app.post("/record-media", jsonParser, function (req, res) {
+    let newMedia = { ...req.body };
+    console.log(newMedia)
+    db.query(
+        "INSERT INTO media SET ?",
+        newMedia,
+        (error, result) => {
+            if (error) {
+                return res.status(500).json({ status: "ERROR", error });
+            }
+
+            return res.json({ status: "SUCCESS", newMedia });
+        }
+    );
+})
+
+
+// Set up multer storage
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "media-storage/"); // Set the destination folder for uploaded files
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname); // Set the filename for uploaded files
+    },
+});
+
+// Create multer instance with the storage configuration
+const upload = multer({ storage: storage });
+app.post("/upload-media", upload.single("file"), function (req, res) {
+    const file = req.file; // Get the uploaded file object
+    if (!file) {
+        return res.status(400).json({ status: "ERROR", error: "No file uploaded" });
+    }
+    return res.json({ status: "SUCCESS", url: file.filename });
+});
+
+app.get("/media/:id", function (req, res) {
+    db.query("select * from media where media_id=?", [req.params.id], (error, result) => {
+        if (error) {
+            return res.status(500).json({ status: "ERROR", error });
+        } return res.sendFile(__dirname + "/media-storage/" + req.params.id + "-" + result[0].file_name);
+    })
+
 });
 
 app.listen(PORT, function () {
