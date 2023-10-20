@@ -30,24 +30,46 @@ const db = mysql.createConnection({
 
 
 
-
-
-
-
-//Get all threads from the database
-app.get("/threads", function (req, res) {
+//Get preview threads for a board
+app.get("/thread-previews/:board", function (req, res) {
     db.query(
-        "select * from threads order by last_updated desc",
+        `SELECT
+        t.thread_id,
+        t.title,
+        COUNT(r.reply_id) AS reply_count
+    FROM
+        threads t
+    LEFT JOIN
+        replies r ON t.thread_id = r.thread_id
+    WHERE
+        t.board = ?
+    GROUP BY
+        t.thread_id, t.title
+    ORDER BY
+        MAX(t.last_updated) DESC
+    `,
+        [req.params.board],
+        (error, data) => {
+            if (error) {
+                return res.json({ status: "ERROR", error });
+            }
+
+            return res.json(data);
+        }
+    );
+});
+
+
+
+//Get all threads from the database for a board
+app.get("/:board/threads", function (req, res) {
+    db.query(
+        "select * from threads where board=? order by last_updated desc", [req.params.board],
         (error, data) => {
             if (error) {
                 return res.json({ status: "ERROR", error });
             }
             const threads = data;
-            //I somehow must only get 6 replies for every thread, how?
-
-
-
-
 
             db.query(
                 "select * from replies order by created_at",
